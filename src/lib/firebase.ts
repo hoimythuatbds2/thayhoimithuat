@@ -21,13 +21,24 @@ import {
   deleteDoc,
   serverTimestamp
 } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import defaultFirebaseConfig from '../../firebase-applet-config.json';
 
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+// Support both firebase-applet-config.json and Vercel / Vite environment variables
+export const resolvedFirebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || defaultFirebaseConfig?.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || defaultFirebaseConfig?.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || defaultFirebaseConfig?.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || defaultFirebaseConfig?.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || defaultFirebaseConfig?.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || defaultFirebaseConfig?.appId,
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || defaultFirebaseConfig?.firestoreDatabaseId || '(default)'
+};
+
+const app = getApps().length > 0 ? getApp() : initializeApp(resolvedFirebaseConfig);
 export const auth = getAuth(app);
 
 // CRITICAL: Initialize Firestore with custom firestoreDatabaseId from configuration
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app, resolvedFirebaseConfig.firestoreDatabaseId);
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });

@@ -2,6 +2,7 @@
  * Danh sách email quản trị viên (Admin) - chỉ các email này được thấy và sử dụng trang quản trị admin
  */
 export const ADMIN_EMAILS: string[] = [
+  'hoi.mythuatbs2@gmail.com',
   'ducphuc209219@gmail.com',
   'nguyenhoi.education@gmail.com',
   'animizht1208@gmail.com'

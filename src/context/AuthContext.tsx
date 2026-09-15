@@ -170,8 +170,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     } catch (err: any) {
       console.error('Google Sign-In Error:', err);
-      // If popup blocked or failed in iframe, attempt redirect
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
+      // If unauthorized domain (common when deploying to Vercel before adding domain to Firebase Console)
+      if (err.code === 'auth/unauthorized-domain') {
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : 'Vercel';
+        setAuthError(
+          `Miền "${hostname}" chưa được cấp phép trong Firebase! Vui lòng vào Firebase Console > Authentication > Settings > Authorized Domains và thêm miền "${hostname}" (hoặc *.vercel.app).`
+        );
+      } else if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
         try {
           await signInWithRedirect(auth, googleProvider);
           return;

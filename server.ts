@@ -7,21 +7,41 @@ import { createServer as createViteServer } from 'vite';
 dotenv.config();
 
 // Read firebase applet config for server-side auth & firestore verification
-let firebaseConfig: any = {};
+let fileConfig: any = {};
 try {
   const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
   if (fs.existsSync(configPath)) {
-    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    fileConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
   }
 } catch (e) {
   console.warn('Could not load firebase-applet-config.json on server:', e);
 }
 
-const ADMIN_EMAILS = [
+const firebaseConfig = {
+  apiKey: process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || fileConfig.apiKey,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || process.env.VITE_FIREBASE_AUTH_DOMAIN || fileConfig.authDomain,
+  projectId: process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || fileConfig.projectId,
+  firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || process.env.VITE_FIREBASE_DATABASE_ID || fileConfig.firestoreDatabaseId || 'ai-studio-trltokhochbidymt-6d8f795c-20e8-42b4-b455-af077ee7b386',
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET || fileConfig.storageBucket,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || fileConfig.messagingSenderId,
+  appId: process.env.FIREBASE_APP_ID || process.env.VITE_FIREBASE_APP_ID || fileConfig.appId,
+};
+
+const DEFAULT_ADMIN_EMAILS = [
+  'hoi.mythuatbs2@gmail.com',
   'ducphuc209219@gmail.com',
   'nguyenhoi.education@gmail.com',
   'animizht1208@gmail.com'
 ];
+
+const envAdminEmails = process.env.ADMIN_EMAILS
+  ? process.env.ADMIN_EMAILS.split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+  : [];
+
+const ADMIN_EMAILS = Array.from(new Set([
+  ...DEFAULT_ADMIN_EMAILS.map(e => e.toLowerCase()),
+  ...envAdminEmails
+]));
 
 const INITIAL_ALLOWED_EMAILS = [
   'nguyenhoi.it@gmail.com',
@@ -29,20 +49,32 @@ const INITIAL_ALLOWED_EMAILS = [
   ...ADMIN_EMAILS
 ];
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+const PORT = 3000;
 
-  app.use(express.json());
+app.use(express.json());
 
-  // API routes FIRST
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok' });
-  });
+// Enable CORS for Vercel preview domains & cross-origin requests
+app.use((_req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  if (_req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
-  // Verify user authorization server-side
-  // Checks if user's Google email exists and is active in the Firestore 'allowed_users' collection
-  app.post('/api/auth/verify-allowed-user', async (req, res) => {
+const apiRouter = express.Router();
+
+// API routes FIRST
+apiRouter.get('/health', (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// Verify user authorization server-side
+// Checks if user's Google email exists and is active in the Firestore 'allowed_users' collection
+apiRouter.post('/auth/verify-allowed-user', async (req, res) => {
     try {
       const authHeader = req.headers.authorization;
       const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
@@ -237,7 +269,7 @@ async function startServer() {
   }
 
   // Admin endpoint: Add email to allowed_users
-  app.post('/api/admin/add-allowed-user', async (req, res) => {
+  apiRouter.post('/admin/add-allowed-user', async (req, res) => {
     const adminCheck = await verifyAdminCaller(req);
     if (!adminCheck.isAdmin) {
       return res.status(403).json({ success: false, error: adminCheck.error });
@@ -289,7 +321,7 @@ async function startServer() {
   });
 
   // Admin endpoint: Remove email from allowed_users
-  app.post('/api/admin/remove-allowed-user', async (req, res) => {
+  apiRouter.post('/admin/remove-allowed-user', async (req, res) => {
     const adminCheck = await verifyAdminCaller(req);
     if (!adminCheck.isAdmin) {
       return res.status(403).json({ success: false, error: adminCheck.error });
@@ -336,7 +368,7 @@ async function startServer() {
 
   // Verify template password endpoint
   // Compares client password strictly with secret TEMPLATE_PASSWORD
-  app.post('/api/verify-template-password', (req, res) => {
+  apiRouter.post('/verify-template-password', (req, res) => {
     const { password } = req.body || {};
     const secretPassword = process.env.TEMPLATE_PASSWORD;
 
@@ -368,6 +400,12 @@ async function startServer() {
     });
   });
 
+  // Mount API router on both /api and root
+  // This guarantees compatibility with both direct requests and Vercel serverless rewrites
+  app.use('/api', apiRouter);
+  app.use(apiRouter);
+
+async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -388,4 +426,11 @@ async function startServer() {
   });
 }
 
-startServer();
+// In local dev and Docker / Cloud Run containers, start HTTP server on PORT 3000
+// On Vercel, Vercel Serverless Function imports and manages app directly
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
+export { app };
