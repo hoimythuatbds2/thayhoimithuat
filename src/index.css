@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-lesson-plan, #printable-lesson-plan * {
+    visibility: visible;
+  }
+  #printable-lesson-plan {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 1.5cm !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": " Trợ Lý Tạo Kế Hoạch Bài Dạy Mĩ Thuật Theo Tuần V3.0",
+  "description": "Hệ thống tự động hóa xây dựng Kế hoạch bài dạy (KHBD) môn Mĩ thuật Tiểu học theo tuần từ Master Template và Master Content K1–K5, chuẩn cấu trúc văn bản, bảo toàn định dạng và xuất DOCX/PDF.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
